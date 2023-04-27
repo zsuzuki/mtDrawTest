@@ -63,7 +63,7 @@ class WorkerThread
     std::vector<WorkerSlot>  workerSlot;
 
     // ワーカー実行
-    void update(int& ecnt)
+    void update()
     {
         for (;;)
         {
@@ -97,7 +97,6 @@ class WorkerThread
                     }
                     // ストックに戻す
                     stockQueue.push(wslot);
-                    ecnt++;
                 }
                 else
                 {
@@ -115,23 +114,17 @@ class WorkerThread
     }
 
   public:
-    std::vector<int>        ecnt;
-    const std::vector<int>& getEC() const { return ecnt; }
-
     //
     WorkerThread(const WorkerThread&)            = delete;
     WorkerThread& operator=(const WorkerThread&) = delete;
     //
     WorkerThread(size_t nbWorker = 2000, size_t nbThread = 3) : workerQueue(nbWorker + 1), stockQueue(nbWorker + 1)
     {
-        ecnt.resize(nbThread);
-        int e   = 0;
         enabled = true;
         threadList.resize(nbThread);
         for (auto& th : threadList)
         {
-            th = std::thread([this, e] { update(ecnt[e]); });
-            e++;
+            th = std::thread([this] { update(); });
         }
         // ワーカー用スロットを確保して待機用キューに全て積んでおく
         workerSlot.resize(nbWorker);

@@ -81,15 +81,6 @@ class MainWorker : public SimpleWorker::ChainWorker
                 }
                 first = false;
             }
-
-            auto* owner = getOwner();
-            auto& ecnt  = owner->getEC();
-            int   y     = 50;
-            for (auto c : ecnt)
-            {
-                Printf(512, y, "%d", c);
-                y += 25;
-            }
         }
     };
 
