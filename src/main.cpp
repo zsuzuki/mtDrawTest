@@ -59,7 +59,7 @@ class MainWorker : public SimpleWorker::ChainWorker
         std::vector<MobWorker>& moblist;
 
       public:
-        DrawWorker(std::vector<MobWorker>& ml) : moblist(ml) {}
+        DrawWorker(std::vector<MobWorker>& ml) : SimpleWorker::ChainWorker("Draw"), moblist(ml) {}
 
         SimpleWorker::count_t* dbgcnt;
 
@@ -69,17 +69,10 @@ class MainWorker : public SimpleWorker::ChainWorker
             Printf(100, 450, "%zu/%d", moblist.size(), cnt->load());
 
             SetColor(255, 255, 255);
-            bool first = true;
             for (auto& mob : moblist)
             {
                 auto& p = mob.getDispPos();
-                // DrawPoint(p[0], p[1]);
-                FillRect(p[0], p[1], 2, 2);
-                if (first)
-                {
-                    Printf(100, 500, "%0.2f,%0.2f", p[0], p[1]);
-                }
-                first = false;
+                DrawPoint(p[0], p[1]);
             }
         }
     };
@@ -89,7 +82,10 @@ class MainWorker : public SimpleWorker::ChainWorker
     SimpleWorker::count_t  mobCounter;
 
   public:
-    MainWorker(size_t n = 10000) : drawWorker(moblist), moblist(n) { drawWorker.dbgcnt = &mobCounter; }
+    MainWorker(size_t n = 10000) : SimpleWorker::ChainWorker("Main"), drawWorker(moblist), moblist(n)
+    {
+        drawWorker.dbgcnt = &mobCounter;
+    }
     void run() override
     {
         Print(100, 400, "Main Loop");

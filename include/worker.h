@@ -137,7 +137,8 @@ class WorkerThread
     //
     virtual ~WorkerThread() { stop(); }
 
-    //
+    // ワーカースレッドの実行を停止する
+    // ※基本的にはキューが空になってから終了するものの、pushするタイミングなどによって確実に全てのワーカーが終了するかは保証しない
     void stop()
     {
         enabled = false;
@@ -148,17 +149,17 @@ class WorkerThread
         }
     }
 
-    //
+    // ワーカーの実行を開始する
     void execute() { executeCondition.notify_all(); }
 
-    //
+    // 全てのワーカーの処理が終了するまで待つ
     void wait()
     {
         std::unique_lock<std::mutex> lk(executeMutex);
         waitCondition.wait(lk, [this] { return executeCount.load() == 0 && workerQueue.empty(); });
     }
 
-    // ワーカーセット
+    // ワーカーセット：ワーカースレッドが稼働状態にあった場合は即座に実行されうる
     bool push(Worker& worker, count_t* cnt = nullptr, const char* name = nullptr)
     {
         if (auto* wslot = stockQueue.pop())
@@ -169,7 +170,8 @@ class WorkerThread
         }
         return false;
     }
-    // カウンタ依存ワーカーセット
+    // カウンタ依存ワーカーセット：ワーカースレッドが稼働状態にあった場合は即座に実行されうる
+    // @note 指定した参照カウンタが0以下になった以降に実行される
     bool push(std::atomic_int* ref, Worker& worker, count_t* cnt = nullptr, const char* name = nullptr)
     {
         if (auto* wslot = stockQueue.pop())
@@ -183,21 +185,25 @@ class WorkerThread
 };
 
 //
-// カウンタ共有して実行させるユーティリティ
+// カウンタ共有して実行させるユーティリティつきのワーカー
 //
 class ChainWorker : public Worker
 {
   private:
     WorkerThread* owner   = nullptr;
     count_t*      counter = nullptr;
+    std::string   name{"NONAME"};
 
   protected:
     WorkerThread* getOwner() { return owner; }
     count_t*      getCounter() { return counter; }
 
   public:
+    ChainWorker() = default;
+    ChainWorker(const char* n) : name(n) {}
+
     // ワーカースレッドに繋いで実行させる
-    // 登録したワーカーが動いている間に実行を開始するかもしれないので注意
+    // @note 登録したワーカーが動いている間に実行を開始するかもしれないので注意
     void attach(WorkerThread& wt, count_t* cnt)
     {
         owner   = &wt;
@@ -205,11 +211,11 @@ class ChainWorker : public Worker
         if (counter != nullptr)
         {
             counter->fetch_add(1);
-            wt.push(*this, counter);
+            wt.push(*this, counter, name.c_str());
         }
     }
     // ワーカースレッドに繋いで実行させる
-    // 登録したワーカーが動いている間に実行を開始するかもしれないので注意
+    // @note 登録したワーカーが動いている間に実行を開始するかもしれないので注意
     void attach(count_t* ref, WorkerThread& wt, count_t* cnt)
     {
         owner   = &wt;
@@ -217,7 +223,7 @@ class ChainWorker : public Worker
         if (counter != nullptr)
         {
             counter->fetch_add(1);
-            wt.push(ref, *this, counter);
+            wt.push(ref, *this, counter, name.c_str());
         }
     }
 };
